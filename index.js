@@ -5,6 +5,9 @@ const request = require('request-promise')
 const db = require('./lib/db')
 const User = require('./lib/User')
 const oauth2 = require('./lib/oauth2')
+const dotenv = require('dotenv')
+
+dotenv.config()
 
 const server = restify.createServer({
   name: 'reddit-api',
@@ -25,7 +28,7 @@ server.use(restify.plugins.bodyParser())
 
 server.get('/auth/', async (req, res, next) => {
   const authorizationUri = oauth2.authorizationCode.authorizeURL({
-    redirect_uri: 'http://localhost:5000/auth/callback',
+    redirect_uri: `${process.env.API_URL}/auth/callback`,
     scope: ['identity', 'subscribe'],
     state: 'random-unique-string'
   });
@@ -38,7 +41,7 @@ server.get('/auth/callback', async (req, res) => {
   const options = {
     code,
     state: 'random-unique-string',
-    redirect_uri: 'http://localhost:5000/auth/callback'
+    redirect_uri: `${process.env.API_URL}/auth/callback`
   };
 
   const authorizationCodeResult = await oauth2.authorizationCode.getToken(options)
