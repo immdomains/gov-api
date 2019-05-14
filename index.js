@@ -1,25 +1,10 @@
-const dotenv = require('dotenv')
 const restify = require('restify')
 const restifyPromise = require('restify-await-promise')
 const corsMiddleware = require('restify-cors-middleware')
-const simpleOAuth2 = require('simple-oauth2')
 const request = require('request-promise')
-
-dotenv.config()
-
-const oauth2 = simpleOAuth2.create({
-  client: {
-    id: process.env.REDDIT_ID,
-    secret: process.env.REDDIT_SECRET
-  },
-  auth: {
-    authorizeHost: 'https://www.reddit.com',
-    authorizePath: '/api/v1/authorize',
-    tokenHost: 'https://www.reddit.com',
-    tokenPath: '/api/v1/access_token'
-  }
-})
-
+const db = require('./lib/db')
+const User = require('./lib/User')
+const oauth2 = require('./lib/oauth2')
 
 const server = restify.createServer({
   name: 'reddit-api',
@@ -59,6 +44,26 @@ server.get('/auth/callback', async (req, res) => {
   const authorizationCodeResult = await oauth2.authorizationCode.getToken(options)
   const accessTokenResult = oauth2.accessToken.create(authorizationCodeResult)
   const accessToken = accessTokenResult.token.access_token
+
+  const meResult = await request({
+    method: 'GET',
+    uri: 'https://oauth.reddit.com/api/v1/me',
+    json: true,
+    headers: {
+      'User-Agent': 'GuildCrypt/0.1 by GuildCrypt',
+      'Authorization': `bearer ${accessToken}`
+    }
+  })
+
+  let user = await db.fetchUserByRedditId(meResult.id)
+
+  if (user === null) {
+    await db.createUser(meResult.id, meResult.name, meResult.created_utc)
+    user = db.fetchUserByRedditId(meResult.id)
+  }
+
+  return res.send(meResult)
+
   const subscribeResult = await request({
     method: 'POST',
     uri: 'https://oauth.reddit.com/api/subscribe',
