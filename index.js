@@ -62,7 +62,6 @@ server.get('/auth/callback', async (req, res) => {
     user = db.fetchUserByRedditId(meResult.id)
   }
 
-  return res.send(meResult)
 
   const subscribeResult = await request({
     method: 'POST',
@@ -77,8 +76,8 @@ server.get('/auth/callback', async (req, res) => {
       'Authorization': `bearer ${accessToken}`
     }
   })
-  return res.send(subscribeResult)
-  return res.send(accessToken)
+
+  return res.send(meResult)
 
 })
 
