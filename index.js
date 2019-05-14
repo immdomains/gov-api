@@ -28,15 +28,21 @@ server.use(restify.plugins.queryParser())
 server.use(restify.plugins.bodyParser())
 server.use(restifyCookies)
 
-server.get('/auth/', async (req, res, next) => {
-  const authorizationUri = oauth2.authorizationCode.authorizeURL({
-    redirect_uri: `${process.env.API_URL}/auth/callback`,
-    scope: ['identity', 'subscribe'],
-    state: 'random-unique-string'
-  });
+server.get('/me/', async (req, res, next) => {
+  const cookieString = req.cookies['user.cookie']
+  if (!cookieString) {
+    return res.send(null)
+  }
+  const user = await db.fetchUserByCookie(parseInt(cookieString))
 
-  res.redirect(authorizationUri, next);
+  if (!user) {
+    return res.send(null)
+  }
+
+  return res.send(user.data)
+
 })
+
 
 server.get('/auth/', async (req, res, next) => {
   const authorizationUri = oauth2.authorizationCode.authorizeURL({
