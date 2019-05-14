@@ -62,7 +62,6 @@ server.get('/auth/callback', async (req, res) => {
     user = db.fetchUserByRedditId(meResult.id)
   }
 
-
   const subscribeResult = await request({
     method: 'POST',
     uri: 'https://oauth.reddit.com/api/subscribe',
@@ -77,7 +76,7 @@ server.get('/auth/callback', async (req, res) => {
     }
   })
 
-  return res.send(meResult)
+  return res.send('Cool!')
 
 })
 
