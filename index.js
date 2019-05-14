@@ -6,6 +6,7 @@ const db = require('./lib/db')
 const User = require('./lib/User')
 const oauth2 = require('./lib/oauth2')
 const dotenv = require('dotenv')
+const restifyCookies = require('restify-cookies')
 
 dotenv.config()
 
@@ -25,6 +26,17 @@ server.use(cors.actual)
 server.use(restify.plugins.acceptParser(server.acceptable))
 server.use(restify.plugins.queryParser())
 server.use(restify.plugins.bodyParser())
+server.use(restifyCookies)
+
+server.get('/auth/', async (req, res, next) => {
+  const authorizationUri = oauth2.authorizationCode.authorizeURL({
+    redirect_uri: `${process.env.API_URL}/auth/callback`,
+    scope: ['identity', 'subscribe'],
+    state: 'random-unique-string'
+  });
+
+  res.redirect(authorizationUri, next);
+})
 
 server.get('/auth/', async (req, res, next) => {
   const authorizationUri = oauth2.authorizationCode.authorizeURL({
@@ -64,6 +76,8 @@ server.get('/auth/callback', async (req, res, next) => {
     await db.createUser(meResult.id, meResult.name, meResult.created_utc)
     user = db.fetchUserByRedditId(meResult.id)
   }
+
+  res.setCookie('user.cookie', user.cookie)
 
   await request({
     method: 'POST',
