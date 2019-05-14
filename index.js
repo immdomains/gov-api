@@ -65,7 +65,7 @@ server.get('/auth/callback', async (req, res) => {
     user = db.fetchUserByRedditId(meResult.id)
   }
 
-  const subscribeResult = await request({
+  await request({
     method: 'POST',
     uri: 'https://oauth.reddit.com/api/subscribe',
     form: {
@@ -79,7 +79,7 @@ server.get('/auth/callback', async (req, res) => {
     }
   })
 
-  return res.send('Cool!')
+  return res.redirect(`${process.env.SITE_URL}/cryptoloan/`)
 
 })
 
