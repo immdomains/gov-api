@@ -79,7 +79,7 @@ server.get('/auth/callback', async (req, res, next) => {
     }
   })
 
-  return res.redirect(`${process.env.SITE_URL}/cryptoloan/`, next)
+  return res.redirect(process.env.REDDIT_CALLBACK_URL, next)
 
 })
 
