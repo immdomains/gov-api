@@ -36,7 +36,7 @@ server.get('/auth/', async (req, res, next) => {
   res.redirect(authorizationUri, next);
 })
 
-server.get('/auth/callback', async (req, res) => {
+server.get('/auth/callback', async (req, res, next) => {
   const code = req.query.code;
   const options = {
     code,
@@ -79,7 +79,7 @@ server.get('/auth/callback', async (req, res) => {
     }
   })
 
-  return res.redirect(`${process.env.SITE_URL}/cryptoloan/`)
+  return res.redirect(`${process.env.SITE_URL}/cryptoloan/`, next)
 
 })
 
