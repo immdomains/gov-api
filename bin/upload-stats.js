@@ -29,7 +29,7 @@ async function fetchStats() {
     return {
       createdAt: user.data.createdAt,
       redditUsername: user.data.redditUsername,
-      isEthereumLinked: user.data.addressHexUnprefixed !== null
+      isEthereumLinked: user.data.addressHexUnprefixed !== null,
       score0Info: {
         isCalculated: user.data.score0UpdatedAt !== null,
         isApproved: user.data.score0 && user.data.score0 > params.score0.threshold
