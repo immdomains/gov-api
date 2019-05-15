@@ -87,7 +87,7 @@ server.get('/auth/callback', async (req, res, next) => {
 
   if (user === null) {
     await db.createUser(meResult.id, meResult.name, meResult.created_utc)
-    user = db.fetchUserByRedditId(meResult.id)
+    user = await db.fetchUserByRedditId(meResult.id)
   }
 
   await request({

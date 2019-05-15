@@ -1,2 +1,3 @@
 web: forever index.js
-update-stats: forever bin/upload-stats.js
+upload-stats: forever bin/upload-stats.js
+update-score0: forever bin/update-score0.js

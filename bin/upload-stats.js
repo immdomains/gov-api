@@ -24,8 +24,6 @@ async function fetchStats() {
     params
   }
 
-  console.log('fetch ', stats.updatedAt)
-
   const recentUsers = await db.fetchRecentUsers(100)
   stats.users = recentUsers.map((user) => {
     return {
@@ -42,7 +40,6 @@ async function fetchStats() {
 }
 
 async function uploadStats(stats) {
-  console.log('upload', stats.updatedAt)
 
   lastUploadedStatsKey = getStatsKey(stats)
   lastUploadedStatsUpdatedAt = stats.updatedAt
