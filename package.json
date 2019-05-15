@@ -9,6 +9,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "aws-sdk": "^2.455.0",
+    "delay": "^4.2.0",
     "dotenv": "^8.0.0",
     "forever": "^1.0.0",
     "promise-mysql": "^3.3.1",

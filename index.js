@@ -6,7 +6,6 @@ const db = require('./lib/db')
 const User = require('./lib/User')
 const oauth2 = require('./lib/oauth2')
 const dotenv = require('dotenv')
-const restifyCookies = require('restify-cookies')
 
 dotenv.config()
 
@@ -17,8 +16,11 @@ const server = restify.createServer({
 
 restifyPromise.install(server)
 
+const domains = ['localhost', 'guildcrypt-site-qa.herokuapp.com', 'guildcrypt.com']
+
 const cors = corsMiddleware({
-  'origins': ['*']
+  origins: ['*'],
+  allowHeaders: ['*']
 })
 
 server.pre(cors.preflight)
@@ -26,14 +28,9 @@ server.use(cors.actual)
 server.use(restify.plugins.acceptParser(server.acceptable))
 server.use(restify.plugins.queryParser())
 server.use(restify.plugins.bodyParser())
-server.use(restifyCookies)
 
-server.get('/me/', async (req, res, next) => {
-  const cookieString = req.cookies['user.cookie']
-  if (!cookieString) {
-    return res.send(null)
-  }
-  const user = await db.fetchUserByCookie(parseInt(cookieString))
+server.get('/me/:cookie', async (req, res, next) => {
+  const user = await db.fetchUserByCookie(parseInt(req.params.cookie))
 
   if (!user) {
     return res.send(null)
@@ -41,6 +38,16 @@ server.get('/me/', async (req, res, next) => {
 
   return res.send(user.data)
 
+})
+
+server.post('/me/addressHexUnprefixed', async (req, res, next) => {
+  const user = await db.fetchUserByCookie(parseInt(req.body.cookie))
+
+  if (!user) {
+    throw new Error(`No user with cookie ${req.body.cookie}`)
+  }
+
+  user.setAddressHexUnprefixed(req.body.addressHexUnprefixed)
 })
 
 
@@ -55,7 +62,7 @@ server.get('/auth/', async (req, res, next) => {
 })
 
 server.get('/auth/callback', async (req, res, next) => {
-  const code = req.query.code;
+  const code = req.query.code
   const options = {
     code,
     state: 'random-unique-string',
@@ -83,8 +90,6 @@ server.get('/auth/callback', async (req, res, next) => {
     user = db.fetchUserByRedditId(meResult.id)
   }
 
-  res.setCookie('user.cookie', user.cookie)
-
   await request({
     method: 'POST',
     uri: 'https://oauth.reddit.com/api/subscribe',
@@ -99,7 +104,7 @@ server.get('/auth/callback', async (req, res, next) => {
     }
   })
 
-  return res.redirect(process.env.REDDIT_CALLBACK_URL, next)
+  return res.redirect(`${process.env.REDDIT_CALLBACK_URL}#/reddit-linked/${user.data.cookie}`, next)
 
 })
 
