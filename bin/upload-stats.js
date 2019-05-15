@@ -24,6 +24,8 @@ async function fetchStats() {
     params
   }
 
+  stats.score0ApprovalsCount = await db.fetchScore0ApprovalsCount()
+
   const recentUsers = await db.fetchRecentUsers(100)
   stats.users = recentUsers.map((user) => {
     return {
