@@ -1,19 +1,7 @@
 const getTime = require('../lib/getTime')
 const params = require('../lib/params')
 const db = require('../lib/db')
-const aws = require('aws-sdk')
-const dotenv = require('dotenv')
-const delay = require('delay')
-
-dotenv.config()
-
-aws.config.update({
-    accessKeyId: process.env.AWS_KEY,
-    secretAccessKey: process.env.AWS_SECRET,
-    region: 'us-east-1'
-})
-
-const s3 = new aws.S3()
+const s3 = require('../lib/s3')const delay = require('delay')
 
 let lastUploadedStatsKey
 let lastUploadedStatsUpdatedAt = 0
