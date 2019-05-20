@@ -55,10 +55,21 @@ server.post('/me/addressHexUnprefixed', async (req, res, next) => {
 
 server.get('/auth/', async (req, res, next) => {
   const callbackUrl = decodeURIComponent(req.query.callbackUrl)
-  res.setCookie('callbackUrl', callbackUrl)
+
+  const scope = ['identity']
+
+  const isSubscribe = req.query.subscribe === 'yes'
+
+  if (isSubscribe) {
+    scope.push('subscribe')
+    res.setCookie('subscribe', 'yes')
+  } else {
+    res.setCookie('subscribe', 'no')
+  }
+
   const authorizationUri = oauth2.authorizationCode.authorizeURL({
     redirect_uri: `${process.env.API_URL}/auth/callback`,
-    scope: ['identity', 'subscribe'],
+    scope: scope,
     state: 'random-unique-string'
   });
 
@@ -95,21 +106,27 @@ server.get('/auth/callback', async (req, res, next) => {
     await user.createTicket('signup')
   }
 
-  await request({
-    method: 'POST',
-    uri: 'https://oauth.reddit.com/api/subscribe',
-    form: {
-      action: 'sub',
-      sr_name: 'GuildCrypt'
-    },
-    json: true,
-    headers: {
-      'User-Agent': 'GuildCrypt/0.1 by GuildCrypt',
-      'Authorization': `bearer ${accessToken}`
+  if (req.cookies.subscribe === 'yes') {
+    await request({
+      method: 'POST',
+      uri: 'https://oauth.reddit.com/api/subscribe',
+      form: {
+        action: 'sub',
+        sr_name: 'GuildCrypt'
+      },
+      json: true,
+      headers: {
+        'User-Agent': 'GuildCrypt/0.1 by GuildCrypt',
+        'Authorization': `bearer ${accessToken}`
+      }
+    })
+    if (user.data.isRedditSubscribed !== 1) {
+      await db.query('UPDATE users SET isRedditSubscribed = 1 WHERE id = ?', [
+        user.data.id
+      ])
+      await user.createTicket('reddit-subscribe')
     }
-  })
-
-  console.log(req.cookies)
+  }
 
   return res.redirect(`${req.cookies.callbackUrl}#/reddit-linked/${user.data.cookie}`, next)
 

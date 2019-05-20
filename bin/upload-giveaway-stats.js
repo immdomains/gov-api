@@ -24,15 +24,35 @@ async function fetchStats() {
     const drawingAtHour = giveaway.data.drawingAtHour
     const drawingAt = (new Date(`${drawingAtYear}-${drawingAtMonth}-${drawingAtDay} ${drawingAtHour}:00:00 UTC-4`)) / 1000
 
+    if (giveaway.data.winningTicketId <= null && drawingAt < stats.updatedAt) {
+      const winningTicketResults = await db.query('SELECT id FROM tickets ORDER BY RAND()')
+
+      giveaway.data.winningTicketId = winningTicketResults[0].id
+      await db.query('UPDATE giveaways SET winningTicketId = ? WHERE id = ?', [
+        giveaway.data.winningTicketId,
+        giveaway.data.id
+      ])
+    }
+
     const card = await giveaway.fetchCard()
 
-    stats.giveaways.push({
+    const giveawayData = {
      drawingAt,
      card: {
        id: card.data.id,
        title: card.data.title
      }
-    })
+    }
+
+    const winningUser = await giveaway.fetchWinningUser()
+
+    if (winningUser) {
+      giveawayData.winningUser = {
+        redditUsername: winningUser.data.redditUsername
+      }
+    }
+
+    stats.giveaways.push(giveawayData)
   })
 
   const ticketResults = await db.query('SELECT * FROM tickets ORDER BY createdAt DESC LIMIT 100')
