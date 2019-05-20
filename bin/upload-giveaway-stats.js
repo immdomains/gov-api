@@ -11,7 +11,8 @@ async function fetchStats() {
   console.log('fetch giveaway stats')
   const stats = {
     updatedAt: getTime(),
-    giveaways: []
+    giveaways: [],
+    tickets: []
   }
 
   const giveaways = await db.fetchGiveaways()
@@ -33,6 +34,25 @@ async function fetchStats() {
      }
     })
   })
+
+  const ticketResults = await db.query('SELECT * FROM tickets ORDER BY createdAt DESC LIMIT 100')
+
+  await asyncForEach(ticketResults, async (ticketResult) => {
+    const user = await db.fetchUser(ticketResult.userId)
+
+    const ticket = {
+      id: ticketResult.id,
+      createdAt: ticketResult.createdAt,
+      reasonCode: ticketResult.reasonCode,
+      user: {
+        redditUsername: user.data.redditUsername
+      }
+    }
+
+    stats.tickets.push(ticket)
+  })
+
+
 
   return stats
 }

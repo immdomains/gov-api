@@ -1,6 +1,7 @@
 const restify = require('restify')
 const restifyPromise = require('restify-await-promise')
 const corsMiddleware = require('restify-cors-middleware')
+const restifyCookies = require('restify-cookies')
 const request = require('request-promise')
 const db = require('./lib/db')
 const User = require('./lib/User')
@@ -25,6 +26,7 @@ const cors = corsMiddleware({
 
 server.pre(cors.preflight)
 server.use(cors.actual)
+server.use(restifyCookies.parse)
 server.use(restify.plugins.acceptParser(server.acceptable))
 server.use(restify.plugins.queryParser())
 server.use(restify.plugins.bodyParser())
@@ -52,6 +54,8 @@ server.post('/me/addressHexUnprefixed', async (req, res, next) => {
 
 
 server.get('/auth/', async (req, res, next) => {
+  const callbackUrl = decodeURIComponent(req.query.callbackUrl)
+  res.setCookie('callbackUrl', callbackUrl)
   const authorizationUri = oauth2.authorizationCode.authorizeURL({
     redirect_uri: `${process.env.API_URL}/auth/callback`,
     scope: ['identity', 'subscribe'],
@@ -88,6 +92,7 @@ server.get('/auth/callback', async (req, res, next) => {
   if (user === null) {
     await db.createUser(meResult.id, meResult.name, meResult.created_utc)
     user = await db.fetchUserByRedditId(meResult.id)
+    await user.createTicket('signup')
   }
 
   await request({
@@ -104,7 +109,9 @@ server.get('/auth/callback', async (req, res, next) => {
     }
   })
 
-  return res.redirect(`${process.env.REDDIT_CALLBACK_URL}#/reddit-linked/${user.data.cookie}`, next)
+  console.log(req.cookies)
+
+  return res.redirect(`${req.cookies.callbackUrl}#/reddit-linked/${user.data.cookie}`, next)
 
 })
 
