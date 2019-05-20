@@ -56,6 +56,8 @@ server.post('/me/addressHexUnprefixed', async (req, res, next) => {
 server.get('/auth/', async (req, res, next) => {
   const callbackUrl = decodeURIComponent(req.query.callbackUrl)
 
+  res.setCookie(callbackUrl)
+
   const scope = ['identity']
 
   const isSubscribe = req.query.subscribe === 'yes'
