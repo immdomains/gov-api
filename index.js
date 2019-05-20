@@ -34,11 +34,20 @@ server.use(restify.plugins.bodyParser())
 server.get('/me/:cookie', async (req, res, next) => {
   const user = await db.fetchUserByCookie(parseInt(req.params.cookie))
 
+
   if (!user) {
     return res.send(null)
   }
 
-  return res.send(user.data)
+  const userData = user.data
+
+  const tickets = await user.fetchTickets()
+
+  userData.tickets = tickets.map((ticket) => {
+    ticket.data
+  })
+
+  return res.send(userData)
 
 })
 
