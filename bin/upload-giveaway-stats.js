@@ -69,6 +69,21 @@ async function fetchStats() {
       }
     }
 
+    if (ticketResult.inviteId !== null) {
+      const inviteResults = await db.query('SELECT * FROM invites WHERE id = ?', ticketResult.inviteId)
+      const inviteResult = inviteResults[0]
+      const fromUser = await db.fetchUser(inviteResult.fromUserId)
+      const toUser = await db.fetchUser(inviteResult.toUserId)
+      ticket.invite = {
+        fromUser: {
+          redditUsername: fromUser.data.redditUsername
+        },
+        toUser: {
+          redditUsername: toUser.data.redditUsername
+        }
+      }
+    }
+
     stats.tickets.push(ticket)
   })
 

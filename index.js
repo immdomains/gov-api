@@ -31,9 +31,13 @@ server.use(restify.plugins.acceptParser(server.acceptable))
 server.use(restify.plugins.queryParser())
 server.use(restify.plugins.bodyParser())
 
-server.get('/me/:cookie', async (req, res, next) => {
-  const user = await db.fetchUserByCookie(parseInt(req.params.cookie))
+server.get('/me/', async (req, res, next) => {
+  console.log(req.headers)
+  if (!req.headers.authorization) {
+    return res.send(null)
+  }
 
+  const user = await db.fetchUserByCookie(req.headers.authorization)
 
   if (!user) {
     return res.send(null)
@@ -51,8 +55,43 @@ server.get('/me/:cookie', async (req, res, next) => {
 
 })
 
+server.post('/me/email', async (req, res, next) => {
+  const user = await db.fetchUserByCookie(req.headers.authorization)
+
+  if (!user) {
+    return res.send(null)
+  }
+
+  const userData = user.data
+
+  const tickets = await user.fetchTickets()
+
+  userData.tickets = tickets.map((ticket) => {
+    ticket.data
+  })
+
+  return res.send(userData)
+
+})
+
+
+server.get('/invites/:inviteCode', async (req, res, next) => {
+  const user = await db.fetchUserByInviteCode(parseInt(req.params.inviteCode))
+
+  if (!user) {
+    return res.send(null)
+  }
+
+  return res.send({
+    inviteCode: user.data.inviteCode,
+    redditUsername: user.data.redditUsername
+  })
+
+})
+
+
 server.post('/me/addressHexUnprefixed', async (req, res, next) => {
-  const user = await db.fetchUserByCookie(parseInt(req.body.cookie))
+  const user = await db.fetchUserByCookie(req.headers.authorization)
 
   if (!user) {
     throw new Error(`No user with cookie ${req.body.cookie}`)
@@ -66,6 +105,7 @@ server.get('/auth/', async (req, res, next) => {
   const callbackUrl = decodeURIComponent(req.query.callbackUrl)
 
   res.setCookie('callbackUrl', callbackUrl)
+  res.setCookie('inviteCode', req.query.inviteCode)
 
   const scope = ['identity']
 
@@ -105,7 +145,7 @@ server.get('/auth/callback', async (req, res, next) => {
     json: true,
     headers: {
       'User-Agent': 'GuildCrypt/0.1 by GuildCrypt',
-      'Authorization': `bearer ${accessToken}`
+      'authorization': `bearer ${accessToken}`
     }
   })
 
@@ -115,6 +155,12 @@ server.get('/auth/callback', async (req, res, next) => {
     await db.createUser(meResult.id, meResult.name, meResult.created_utc)
     user = await db.fetchUserByRedditId(meResult.id)
     await user.createTicket('signup')
+
+
+
+    if (req.cookies.inviteCode) {
+      await user.markInvite(req.cookies.inviteCode)
+    }
   }
 
   if (req.cookies.subscribe === 'yes') {
@@ -128,7 +174,7 @@ server.get('/auth/callback', async (req, res, next) => {
       json: true,
       headers: {
         'User-Agent': 'GuildCrypt/0.1 by GuildCrypt',
-        'Authorization': `bearer ${accessToken}`
+        'authorization': `bearer ${accessToken}`
       }
     })
     if (user.data.isRedditSubscribed !== 1) {
