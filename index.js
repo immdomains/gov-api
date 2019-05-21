@@ -51,6 +51,18 @@ server.get('/me/', async (req, res, next) => {
     ticket.data
   })
 
+  const inviteToUsersResults = await db.query('SELECT * FROM users WHERE id IN (SELECT toUserId FROM invites WHERE fromUserId = ?)', [
+    user.data.id
+  ])
+
+  userData.invites = inviteToUsersResults.map((toUser) => {
+    return {
+      toUser: {
+        redditUsername: toUser.redditUsername
+      }
+    }
+  })
+
   return res.send(userData)
 
 })
