@@ -138,4 +138,6 @@ async function loopUploadStats() {
   return loopUploadStats()
 }
 
-loopUploadStats()
+loopUploadStats().catch((err) => {
+  process.exit(1)
+})

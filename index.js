@@ -32,7 +32,6 @@ server.use(restify.plugins.queryParser())
 server.use(restify.plugins.bodyParser())
 
 server.get('/me/', async (req, res, next) => {
-  console.log(req.headers)
   if (!req.headers.authorization) {
     return res.send(null)
   }
@@ -71,18 +70,18 @@ server.post('/me/email', async (req, res, next) => {
   const user = await db.fetchUserByCookie(req.headers.authorization)
 
   if (!user) {
-    return res.send(null)
+    throw new Error('Invalid user')
   }
 
-  const userData = user.data
+  let isNewEmail = user.data.email === null
 
-  const tickets = await user.fetchTickets()
+  await user.updateEmail(req.body.email)
 
-  userData.tickets = tickets.map((ticket) => {
-    ticket.data
-  })
+  if (isNewEmail) {
+    await user.createTicket('email')
+  }
 
-  return res.send(userData)
+  return res.send(null)
 
 })
 
