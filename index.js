@@ -21,7 +21,7 @@ const domains = ['localhost', 'guildcrypt-site-qa.herokuapp.com', 'guildcrypt.co
 
 const cors = corsMiddleware({
   origins: ['*'],
-  allowHeaders: ['*']
+  allowHeaders: ['Authorization'],
 })
 
 server.pre(cors.preflight)
