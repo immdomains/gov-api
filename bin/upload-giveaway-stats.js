@@ -138,6 +138,13 @@ async function loopUploadStats() {
   return loopUploadStats()
 }
 
+db.fetchConnection().then((connection) => {
+  connection.on('error', (error) => {
+    console.log(error)
+    process.exit(1)
+  })
+})
+
 loopUploadStats().catch((err) => {
   process.exit(1)
 })
