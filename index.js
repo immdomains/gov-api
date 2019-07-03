@@ -148,7 +148,7 @@ server.get('/auth/callback', async (req, res, next) => {
     uri: 'https://oauth.reddit.com/api/v1/me',
     json: true,
     headers: {
-      'User-Agent': 'GuildCrypt/0.1 by GuildCrypt',
+      'User-Agent': 'ImmDomains',
       'authorization': `bearer ${accessToken}`
     }
   })
@@ -193,31 +193,3 @@ server.get('/auth/callback', async (req, res, next) => {
 server.listen(process.env.PORT || 5000, function () {
   console.log('%s listening at %s', server.name, server.url);
 })
-
-
-//
-// dotenv.config()
-//
-// const db = new Db(
-//   process.env.DB_HOST,
-//   process.env.DB_NAME,
-//   process.env.DB_USER,
-//   process.env.DB_PASS
-// )
-//
-// async function doIt() {
-//   const user = await db.fetchOrCreateUserByEmail('afernandes@guildcrypt.com')
-//
-//   const checkout = await user.createCheckout(
-//     'a07c5aeca9e7e7663caaafab790264c2fc5c6516',
-//     50,
-//     12,
-//     1
-//   )
-//
-//   await checkout.sendEmail()
-//
-//   await db.end()
-// }
-
-// doIt()
