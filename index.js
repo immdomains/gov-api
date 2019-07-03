@@ -1,27 +1,30 @@
+require('./lib/0')
+
 const restify = require('restify')
 const restifyPromise = require('restify-await-promise')
 const corsMiddleware = require('restify-cors-middleware')
 const restifyCookies = require('restify-cookies')
 const request = require('request-promise')
 const db = require('./lib/db')
-const User = require('./lib/User')
 const oauth2 = require('./lib/oauth2')
-const dotenv = require('dotenv')
+const getNow = require('./lib/utils/getNow')
 
-dotenv.config()
+const Survey = require('./lib/models/Survey')
+const User = require('./lib/models/User')
+
 
 const server = restify.createServer({
-  name: 'reddit-api',
+  name: 'imm-gov-api',
   version: '1.0.0'
 })
 
 restifyPromise.install(server)
 
-const domains = ['localhost', 'guildcrypt-site-qa.herokuapp.com', 'guildcrypt.com']
+const domains = ['localhost', 'imm.domains']
 
 const cors = corsMiddleware({
   origins: ['*'],
-  allowHeaders: ['Authorization'],
+  allowHeaders: ['x-user-id', 'x-user-secret'],
 })
 
 server.pre(cors.preflight)
@@ -31,87 +34,77 @@ server.use(restify.plugins.acceptParser(server.acceptable))
 server.use(restify.plugins.queryParser())
 server.use(restify.plugins.bodyParser())
 
+server.get('/surveys/', async (req, res, next) => {
+
+  const surveys = await db.selectSome(Survey, 'ORDER BY id DESC')
+
+  return res.send(await surveys.asyncMap((survey, index) => {
+    return survey.fetchApiPojo()
+  }))
+
+})
+
+
 server.get('/me/', async (req, res, next) => {
-  if (!req.headers.authorization) {
+  const userId = req.headers['x-user-id']
+  const userCookie = req.headers['x-user-secret']
+
+  if (!userId || !userCookie) {
     return res.send(null)
   }
 
-  const user = await db.fetchUserByCookie(req.headers.authorization)
-
-  if (!user) {
-    return res.send(null)
-  }
-
-  const userData = user.data
-
-  const tickets = await user.fetchTickets()
-
-  userData.tickets = tickets.map((ticket) => {
-    ticket.data
-  })
-
-  const inviteToUsersResults = await db.query('SELECT * FROM users WHERE id IN (SELECT toUserId FROM invites WHERE fromUserId = ?)', [
-    user.data.id
+  const user = await db.selectOne(User, 'WHERE id = ? AND secret = ?', [
+    userId,
+    userCookie
   ])
 
-  userData.invites = inviteToUsersResults.map((toUser) => {
-    return {
-      toUser: {
-        redditUsername: toUser.redditUsername
-      }
-    }
-  })
+  if (!user) {
+    return null
+  }
 
-  return res.send(userData)
+  return res.send(await user.fetchMeApiPojo())
 
 })
 
-server.post('/me/email', async (req, res, next) => {
-  const user = await db.fetchUserByCookie(req.headers.authorization)
+server.post('/me/vote/', async (req, res, next) => {
+  const userId = req.headers['x-user-id']
+  const userCookie = req.headers['x-user-secret']
+
+  const user = await db.selectOne(User, 'WHERE id = ? AND secret = ?', [
+    userId,
+    userCookie
+  ])
 
   if (!user) {
-    throw new Error('Invalid user')
+    throw new Error('Invalid Authorization')
   }
 
-  let isNewEmail = user.data.email === null
+  await user.setSurveyVote(parseInt(req.body.surveyId), parseInt(req.body.answerId))
 
-  await user.updateEmail(req.body.email)
-
-  if (isNewEmail) {
-    await user.createTicket('email')
-  }
-
-  return res.send(null)
+  return res.send(await user.fetchApiPojo())
 
 })
 
-
-server.get('/invites/:inviteCode', async (req, res, next) => {
-  const user = await db.fetchUserByInviteCode(parseInt(req.params.inviteCode))
-
-  if (!user) {
-    return res.send(null)
-  }
-
-  return res.send({
-    inviteCode: user.data.inviteCode,
-    redditUsername: user.data.redditUsername
-  })
-
-})
-
-
-server.post('/me/addressHexUnprefixed', async (req, res, next) => {
-  const user = await db.fetchUserByCookie(req.headers.authorization)
-
-  if (!user) {
-    throw new Error(`No user with cookie ${req.body.cookie}`)
-  }
-
-  user.setAddressHexUnprefixed(req.body.addressHexUnprefixed)
-})
-
-
+//
+// server.post('/me/email', async (req, res, next) => {
+//   const user = await db.fetchUserByCookie(req.headers.authorization)
+//
+//   if (!user) {
+//     throw new Error('Invalid user')
+//   }
+//
+//   let isNewEmail = user.data.email === null
+//
+//   await user.updateEmail(req.body.email)
+//
+//   if (isNewEmail) {
+//     await user.createTicket('email')
+//   }
+//
+//   return res.send(null)
+//
+// })
+//
 server.get('/auth/', async (req, res, next) => {
   const callbackUrl = decodeURIComponent(req.query.callbackUrl)
 
@@ -160,18 +153,21 @@ server.get('/auth/callback', async (req, res, next) => {
     }
   })
 
-  let user = await db.fetchUserByRedditId(meResult.id)
+  let user = await db.selectOne(User, 'WHERE redditId = ?', [
+    meResult.id
+  ])
 
   if (user === null) {
-    await db.createUser(meResult.id, meResult.name, meResult.created_utc)
-    user = await db.fetchUserByRedditId(meResult.id)
-    await user.createTicket('signup')
-
-
-
-    if (req.cookies.inviteCode) {
-      await user.markInvite(req.cookies.inviteCode)
-    }
+    await db.insert(User, {
+      createdAt: getNow(),
+      redditId: meResult.id,
+      redditUsername: meResult.name,
+      redditCreatedAt: meResult.created_utc,
+      secret: Math.floor(Math.random() * 1e6)
+    })
+    user = await db.selectOne(User, 'WHERE redditId = ?', [
+      meResult.id
+    ])
   }
 
   if (req.cookies.subscribe === 'yes') {
@@ -180,23 +176,17 @@ server.get('/auth/callback', async (req, res, next) => {
       uri: 'https://oauth.reddit.com/api/subscribe',
       form: {
         action: 'sub',
-        sr_name: 'GuildCrypt'
+        sr_name: 'ImmDomains'
       },
       json: true,
       headers: {
-        'User-Agent': 'GuildCrypt/0.1 by GuildCrypt',
+        'User-Agent': 'ImmDomains',
         'authorization': `bearer ${accessToken}`
       }
     })
-    if (user.data.isRedditSubscribed !== 1) {
-      await db.query('UPDATE users SET isRedditSubscribed = 1 WHERE id = ?', [
-        user.data.id
-      ])
-      await user.createTicket('reddit-subscribe')
-    }
   }
 
-  return res.redirect(`${req.cookies.callbackUrl}#/reddit-linked/${user.data.cookie}`, next)
+  return res.redirect(`${req.cookies.callbackUrl}#!/auth/${user.result.id}/${user.result.secret}`, next)
 
 })
 
